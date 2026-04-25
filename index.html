@@ -67,13 +67,8 @@
             .gallery-card .desc { padding: 15px; font-size: 14px; color: #333; text-align: center; font-weight: bold;}
 
             /* --- PETA & LEGENDA --- */
-            #map { height: 100vh; width: 100%; }
-            .info.legend {
-                background: white;
-                padding: 10px;
-                border-radius: 6px;
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            }
+            #map { height: 100%; width: 100%; }
+            .info.legend { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 15px rgba(0,0,0,0.2); line-height: 18px; color: #555; }
         </style>
     </head>
 
@@ -214,18 +209,85 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.js"></script>
 
         <script>
-    // ======================================
-    // IMPORTANT:
-    // GANTI URL INI DENGAN DOMAIN GEOSERVER ONLINE
-    // JANGAN PAKAI localhost
-    // ======================================
-    const geoserverUrl = "https://YOUR-DOMAIN.com/geoserver/wms";
+            // --- LOGIN ---
+            function masukWebGIS() {
+                var btn = document.getElementById('loginBtn');
+                var spinner = document.getElementById('spinner');
+                var welcome = document.getElementById('welcomeScreen');
+                
+                spinner.style.display = 'inline-block';
+                btn.style.backgroundColor = '#1f6391';
+                btn.innerText = 'Menyiapkan Portal... ';
+                btn.appendChild(spinner);
 
-    // Base map
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    });
+                setTimeout(function() {
+                    welcome.style.opacity = '0';
+                    setTimeout(function() { welcome.style.display = 'none'; map.invalidateSize(); }, 500);
+                }, 1000);
+            }
 
+            // --- SIDEBAR & TAB ---
+            function toggleSidebar() {
+                document.getElementById("mySidebar").classList.toggle("closed");
+                setTimeout(function(){ map.invalidateSize(); }, 300);
+            }
+
+            function bukaTab(evt, namaTab) {
+                var i, tabcontent, menuitems;
+                tabcontent = document.getElementsByClassName("tab-content");
+                for (i = 0; i < tabcontent.length; i++) { tabcontent[i].classList.remove("active"); }
+                menuitems = document.getElementsByClassName("menu-item");
+                for (i = 0; i < menuitems.length; i++) { menuitems[i].classList.remove("active"); }
+                
+                document.getElementById(namaTab).classList.add("active");
+                evt.currentTarget.classList.add("active");
+
+                if(namaTab === 'tab-peta') { setTimeout(function(){ map.invalidateSize(); }, 100); }
+            }
+
+            // --- INISIALISASI PETA ---
+            var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
+            var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' });
+
+            var trucuk = L.tileLayer.wms("http://localhost:8080/geoserver/wms", {
+                layers: 'Webgis:PL_Trucuk',
+                format: 'image/png',
+                transparent: true,
+                version: '1.1.0',
+                crs: L.CRS.EPSG3857
+            });
+
+            var map = L.map('map', {
+                center: [-7.7300, 110.6700], 
+                zoom: 14, 
+                layers: [osm, trucuk,] // F
+            });
+
+            // Layer Control (Ditambah layer Fasilitas)
+            L.control.layers(
+                {"Peta Dasar (OSM)": osm, "Citra Satelit": satellite}, 
+                {"Penggunaan Lahan": trucuk}
+            ).addTo(map);
+
+            L.control.scale({position: 'bottomright', metric: true, imperial: false}).addTo(map);
+
+            // LEGENDA
+            var legend = L.control({ position: 'bottomleft' });
+            legend.onAdd = function (map) {
+                var div = L.DomUtil.create('div', 'info legend');
+                div.innerHTML = '<h4>Legenda PL</h4><img src="http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=Webgis:PL_Trucuk">';
+                return div;
+            };
+            legend.addTo(map);
+
+            // FITUR BARU 1: TOMBOL LOKASI SAYA (GPS)
+            L.control.locate({
+                position: 'topleft',
+                strings: { title: "Tunjukkan Lokasi Saya" },
+                locateOptions: { maxZoom: 16 }
+            }).addTo(map);
+
+            const geoserverUrl = "https://YOUR-DOMAIN.com/geoserver/wms";
     // WMS layer
     const trucuk = L.tileLayer.wms(geoserverUrl, {
         layers: 'Webgis:PL_Trucuk',
@@ -310,6 +372,6 @@
                 console.error(err);
             });
     });
-</script>
+        </script>
     </body>
     </html>
